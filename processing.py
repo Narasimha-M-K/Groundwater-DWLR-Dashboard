@@ -1,0 +1,160 @@
+"""
+Processing engine for trend analysis, seasonal comparison, and risk index calculation.
+"""
+
+import logging
+from datetime import datetime, timedelta
+from typing import List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
+
+from config import config
+from models.metrics import Metrics, RiskLevel, TrendIndicator
+from models.reading import Reading
+
+logger = logging.getLogger(__name__)
+
+
+class ProcessingEngine:
+    """Core analytics engine for groundwater data processing."""
+    
+    def __init__(self):
+        """Initialize processing engine."""
+        self.trend_window_days = config.trend_window_days
+        self.seasonal_comparison_years = config.seasonal_comparison_years
+        self.risk_trend_weight = config.risk_trend_weight
+        self.risk_seasonal_weight = config.risk_seasonal_weight
+    
+    def calculate_metrics(self, readings: List[Reading], calculation_date: Optional[datetime] = None) -> Metrics:
+        """
+        Calculate all metrics for a set of readings.
+        
+        Args:
+            readings: List of Reading objects
+            calculation_date: Date for calculation (defaults to latest reading date)
+        
+        Returns:
+            Metrics object with calculated values
+        """
+        if not readings:
+            return self._create_empty_metrics(readings, calculation_date)
+        
+        calculation_date = calculation_date or max(r.timestamp for r in readings)
+        station_id = readings[0].station_id
+        
+        # Convert to DataFrame for easier processing
+        df = self._readings_to_dataframe(readings)
+        
+        # Calculate trend
+        trend_indicator, trend_magnitude = self._calculate_trend(df)
+        
+        # Calculate seasonal deviation
+        seasonal_deviation, seasonal_baseline = self._calculate_seasonal_deviation(df, calculation_date)
+        
+        # Calculate risk index
+        risk_index, risk_level = self._calculate_risk_index(trend_indicator, trend_magnitude, seasonal_deviation)
+        
+        return Metrics(
+            station_id=station_id,
+            calculation_date=calculation_date,
+            trend_indicator=trend_indicator,
+            trend_magnitude=trend_magnitude,
+            trend_period_days=self.trend_window_days,
+            seasonal_deviation=seasonal_deviation,
+            seasonal_baseline=seasonal_baseline,
+            risk_index=risk_index,
+            risk_level=risk_level,
+            data_points_used=len(readings)
+        )
+    
+    def _readings_to_dataframe(self, readings: List[Reading]) -> pd.DataFrame:
+        """Convert readings list to pandas DataFrame."""
+        return pd.DataFrame([
+            {
+                "timestamp": r.timestamp,
+                "water_level_m": r.water_level_m
+            }
+            for r in readings
+        ]).sort_values("timestamp")
+    
+    def _calculate_trend(self, df: pd.DataFrame) -> Tuple[TrendIndicator, Optional[float]]:
+        """
+        Calculate short-term trend using moving average comparison.
+        
+        Returns:
+            Tuple of (TrendIndicator, magnitude in meters)
+        """
+        if len(df) < 2:
+            return TrendIndicator.INSUFFICIENT_DATA, None
+        
+        # TODO: Implement trend calculation logic
+        # - Compare recent average to earlier average
+        # - Classify as Recharging, Stable, or Depleting
+        # - Calculate magnitude of change
+        
+        return TrendIndicator.INSUFFICIENT_DATA, None
+    
+    def _calculate_seasonal_deviation(
+        self,
+        df: pd.DataFrame,
+        reference_date: datetime
+    ) -> Tuple[Optional[float], Optional[float]]:
+        """
+        Calculate deviation from seasonal baseline.
+        
+        Returns:
+            Tuple of (deviation in meters, baseline value)
+        """
+        if len(df) < 30:  # Need at least some historical data
+            return None, None
+        
+        # TODO: Implement seasonal deviation calculation
+        # - Compare current period to same period in previous years
+        # - Calculate deviation from baseline
+        
+        return None, None
+    
+    def _calculate_risk_index(
+        self,
+        trend_indicator: TrendIndicator,
+        trend_magnitude: Optional[float],
+        seasonal_deviation: Optional[float]
+    ) -> Tuple[Optional[float], Optional[RiskLevel]]:
+        """
+        Calculate composite risk index (0-100).
+        
+        Args:
+            trend_indicator: Trend classification
+            trend_magnitude: Magnitude of trend change
+            seasonal_deviation: Deviation from seasonal baseline
+        
+        Returns:
+            Tuple of (risk_index, RiskLevel)
+        """
+        if trend_indicator == TrendIndicator.INSUFFICIENT_DATA:
+            return None, None
+        
+        # TODO: Implement risk index calculation
+        # - Convert trend to 0-100 component (60% weight)
+        # - Convert seasonal deviation to 0-100 component (40% weight)
+        # - Combine weighted components
+        # - Classify into risk levels
+        
+        return None, None
+    
+    def _create_empty_metrics(
+        self,
+        readings: List[Reading],
+        calculation_date: Optional[datetime]
+    ) -> Metrics:
+        """Create empty metrics when insufficient data."""
+        station_id = readings[0].station_id if readings else "unknown"
+        return Metrics(
+            station_id=station_id,
+            calculation_date=calculation_date or datetime.now(),
+            trend_indicator=TrendIndicator.INSUFFICIENT_DATA,
+            data_points_used=0,
+            calculation_notes="Insufficient data for calculation"
+        )
+
