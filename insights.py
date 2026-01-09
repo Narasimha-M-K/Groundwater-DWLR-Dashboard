@@ -5,7 +5,7 @@ Insight interpreter that generates human-readable explanations from calculated m
 import logging
 from typing import Optional
 
-from models.metrics import Metrics, RiskLevel, TrendIndicator
+from models.metrics import Metrics, RiskLevel, TrendIndicator, TrendStrength
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,20 @@ class InsightInterpreter:
     
     def _trend_explanation(self, metrics: Metrics) -> str:
         """Generate explanation for trend indicator."""
+        # Use detailed trend_metrics if available, otherwise fall back to basic metrics
+        if metrics.trend_metrics:
+            trend_metrics = metrics.trend_metrics
+            strength_text = f"**{trend_metrics.strength.value.lower()}-strength** " if trend_metrics.strength != TrendStrength.LOW else ""
+            magnitude_text = f" by {abs(trend_metrics.magnitude):.2f} meters" if trend_metrics.magnitude else ""
+            
+            if trend_metrics.status == TrendIndicator.RECHARGING:
+                return f"Groundwater levels show a {strength_text}recharging trend{magnitude_text} over the past {trend_metrics.window_days} days."
+            elif trend_metrics.status == TrendIndicator.DEPLETING:
+                return f"Groundwater levels show a {strength_text}depleting trend{magnitude_text} over the past {trend_metrics.window_days} days."
+            elif trend_metrics.status == TrendIndicator.STABLE:
+                return f"Groundwater levels have remained relatively stable over the past {trend_metrics.window_days} days."
+        
+        # Fallback to basic metrics if trend_metrics not available
         if metrics.trend_indicator == TrendIndicator.RECHARGING:
             magnitude_text = f" by {abs(metrics.trend_magnitude):.2f} meters" if metrics.trend_magnitude else ""
             return f"Groundwater levels show a recharging trend{magnitude_text} over the past {metrics.trend_period_days} days."

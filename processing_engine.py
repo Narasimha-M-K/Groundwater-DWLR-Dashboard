@@ -12,6 +12,7 @@ import pandas as pd
 from config import config
 from models.metrics import Metrics, RiskLevel, TrendIndicator
 from models.reading import Reading
+from processing.trend_engine import TrendEngine
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ class ProcessingEngine:
         self.seasonal_comparison_years = config.seasonal_comparison_years
         self.risk_trend_weight = config.risk_trend_weight
         self.risk_seasonal_weight = config.risk_seasonal_weight
+        self.trend_engine = TrendEngine()
     
     def calculate_metrics(self, readings: List[Reading], calculation_date: Optional[datetime] = None) -> Metrics:
         """
@@ -46,8 +48,15 @@ class ProcessingEngine:
         # Convert to DataFrame for easier processing
         df = self._readings_to_dataframe(readings)
         
-        # Calculate trend
-        trend_indicator, trend_magnitude = self._calculate_trend(df)
+        # Calculate trend using TrendEngine
+        trend_metrics = self.trend_engine.calculate_trend(readings, self.trend_window_days)
+        
+        if trend_metrics:
+            trend_indicator = trend_metrics.status
+            trend_magnitude = trend_metrics.magnitude
+        else:
+            trend_indicator = TrendIndicator.INSUFFICIENT_DATA
+            trend_magnitude = None
         
         # Calculate seasonal deviation
         seasonal_deviation, seasonal_baseline = self._calculate_seasonal_deviation(df, calculation_date)
@@ -61,6 +70,7 @@ class ProcessingEngine:
             trend_indicator=trend_indicator,
             trend_magnitude=trend_magnitude,
             trend_period_days=self.trend_window_days,
+            trend_metrics=trend_metrics,
             seasonal_deviation=seasonal_deviation,
             seasonal_baseline=seasonal_baseline,
             risk_index=risk_index,

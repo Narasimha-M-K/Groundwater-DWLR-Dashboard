@@ -117,7 +117,7 @@ class NWDPClient:
         from datetime import timedelta
         
         # Seasonal variation amplitude (configurable constant)
-        SEASONAL_AMPLITUDE = 0.2  # ±0.2m seasonal variation
+        SEASONAL_AMPLITUDE = 0.05  # ±0.05m seasonal variation
         
         # Stable seed mapping for deterministic generation
         STATION_SEED_MAP = {

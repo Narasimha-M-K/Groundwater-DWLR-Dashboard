@@ -12,7 +12,7 @@ from config import config
 from data_store import DataStore
 from insights import InsightInterpreter
 from models.station import Station
-from processing import ProcessingEngine
+from processing_engine import ProcessingEngine
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -89,12 +89,11 @@ def main():
                         total_stations = len(mock_stations)
                         
                         for idx, station in enumerate(mock_stations):
-                            # Check if readings already exist for this station
+                            # Check if readings exist and count for this station
                             existing_readings = data_store.get_readings(station.station_id)
+                            reading_count = len(existing_readings) if existing_readings else 0
                             
-                            if existing_readings:
-                                st.info(f"⏭️  Skipping {station.name} - {len(existing_readings)} readings already exist")
-                            else:
+                            if reading_count < 365:
                                 # Generate readings (exactly 365 days)
                                 end_date = datetime.now()
                                 start_date = end_date - timedelta(days=365)
@@ -107,9 +106,11 @@ def main():
                                 
                                 if readings:
                                     data_store.save_readings(readings)
-                                    st.info(f"✅ Generated {len(readings)} readings for {station.name}")
+                                    st.info(f"✅ Generated {len(readings)} readings for {station.name} (had {reading_count} readings)")
                                 else:
                                     st.warning(f"⚠️  No readings generated for {station.name}")
+                            else:
+                                st.info(f"⏭️  Skipping {station.name} - {reading_count} readings already exist (>= 365)")
                             
                             progress_bar.progress((idx + 1) / total_stations)
                         

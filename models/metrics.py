@@ -26,6 +26,37 @@ class RiskLevel(str, Enum):
     CRITICAL = "Critical Risk"
 
 
+class TrendStrength(str, Enum):
+    """Trend strength classification."""
+    
+    LOW = "Low"
+    MEDIUM = "Medium"
+    STRONG = "Strong"
+
+
+@dataclass
+class TrendMetrics:
+    """
+    Detailed trend analysis metrics from linear regression.
+    
+    Attributes:
+        status: Trend classification (Recharging/Stable/Depleting)
+        slope: Linear regression slope in m/day
+        strength: Trend strength classification (Low/Medium/Strong)
+        magnitude: Total change in meters over the analysis window.
+                  Calculated as: magnitude = slope * window_days
+        window_days: Analysis window size in days
+        data_points_used: Number of readings used in calculation
+    """
+    
+    status: TrendIndicator
+    slope: float  # m/day
+    strength: TrendStrength
+    magnitude: float  # meters over window (slope * window_days)
+    window_days: int
+    data_points_used: int
+
+
 @dataclass
 class Metrics:
     """Calculated metrics for a groundwater monitoring station."""
@@ -37,6 +68,7 @@ class Metrics:
     trend_indicator: TrendIndicator
     trend_magnitude: Optional[float] = None  # Change in meters over trend window
     trend_period_days: Optional[int] = None
+    trend_metrics: Optional[TrendMetrics] = None  # Detailed trend analysis
     
     # Seasonal metrics
     seasonal_deviation: Optional[float] = None  # Deviation from seasonal baseline
