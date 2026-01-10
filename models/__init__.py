@@ -9,7 +9,8 @@ from .metrics import (
     TrendIndicator,
     TrendMetrics,
     TrendStrength,
-    RiskLevel
+    RiskLevel,
+    SeasonalMetrics
 )
 
 __all__ = [
@@ -20,5 +21,6 @@ __all__ = [
     "TrendMetrics",
     "TrendStrength",
     "RiskLevel",
+    "SeasonalMetrics",
 ]
 

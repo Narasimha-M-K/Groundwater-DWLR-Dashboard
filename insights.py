@@ -5,7 +5,7 @@ Insight interpreter that generates human-readable explanations from calculated m
 import logging
 from typing import Optional
 
-from models.metrics import Metrics, RiskLevel, TrendIndicator, TrendStrength
+from models.metrics import Metrics, RiskLevel, TrendIndicator, TrendStrength, SeasonalMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +74,26 @@ class InsightInterpreter:
     
     def _seasonal_explanation(self, metrics: Metrics) -> Optional[str]:
         """Generate explanation for seasonal deviation."""
+        # Use detailed seasonal_metrics if available
+        if metrics.seasonal_metrics:
+            seasonal_metrics = metrics.seasonal_metrics
+            deviation = seasonal_metrics.deviation
+            deviation_cm = abs(deviation) * 100  # Convert to cm for readability
+            
+            # Classify deviation
+            if abs(deviation) < 0.05:  # < 5 cm
+                classification = "Normal"
+            elif deviation < -0.05:  # Below normal
+                classification = "Below Normal"
+            else:  # deviation > 0.05 (Above normal)
+                classification = "Above Normal"
+            
+            return (
+                f"During the current {seasonal_metrics.season_label}, "
+                f"groundwater levels are {classification} seasonal expectations by {deviation_cm:.1f} cm."
+            )
+        
+        # Fallback to basic metrics if seasonal_metrics not available
         if metrics.seasonal_deviation is None:
             return None
         

@@ -13,6 +13,7 @@ from config import config
 from models.metrics import Metrics, RiskLevel, TrendIndicator
 from models.reading import Reading
 from processing.trend_engine import TrendEngine
+from processing.seasonal_engine import SeasonalEngine
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class ProcessingEngine:
         self.risk_trend_weight = config.risk_trend_weight
         self.risk_seasonal_weight = config.risk_seasonal_weight
         self.trend_engine = TrendEngine()
+        self.seasonal_engine = SeasonalEngine()
     
     def calculate_metrics(self, readings: List[Reading], calculation_date: Optional[datetime] = None) -> Metrics:
         """
@@ -58,8 +60,19 @@ class ProcessingEngine:
             trend_indicator = TrendIndicator.INSUFFICIENT_DATA
             trend_magnitude = None
         
-        # Calculate seasonal deviation
-        seasonal_deviation, seasonal_baseline = self._calculate_seasonal_deviation(df, calculation_date)
+        # Calculate seasonal deviation using SeasonalEngine
+        seasonal_metrics = self.seasonal_engine.calculate_seasonal_deviation(
+            readings,
+            self.trend_window_days,
+            self.seasonal_comparison_years
+        )
+        
+        if seasonal_metrics:
+            seasonal_deviation = seasonal_metrics.deviation
+            seasonal_baseline = seasonal_metrics.historical_baseline
+        else:
+            seasonal_deviation = None
+            seasonal_baseline = None
         
         # Calculate risk index
         risk_index, risk_level = self._calculate_risk_index(trend_indicator, trend_magnitude, seasonal_deviation)
@@ -71,8 +84,9 @@ class ProcessingEngine:
             trend_magnitude=trend_magnitude,
             trend_period_days=self.trend_window_days,
             trend_metrics=trend_metrics,
-            seasonal_deviation=seasonal_deviation,
-            seasonal_baseline=seasonal_baseline,
+            seasonal_deviation=seasonal_deviation,  # Backward compatibility
+            seasonal_baseline=seasonal_baseline,    # Backward compatibility
+            seasonal_metrics=seasonal_metrics,      # Detailed seasonal analysis
             risk_index=risk_index,
             risk_level=risk_level,
             data_points_used=len(readings)

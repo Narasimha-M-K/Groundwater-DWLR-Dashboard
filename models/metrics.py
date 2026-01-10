@@ -58,6 +58,26 @@ class TrendMetrics:
 
 
 @dataclass
+class SeasonalMetrics:
+    """
+    Seasonal deviation metrics from rolling 90-day window analysis.
+    
+    Attributes:
+        actual_change: Change in water level (m) over current 90-day window (last - first)
+        historical_baseline: Mean change (m) over same 90-day windows in previous years
+        deviation: Deviation from baseline (m) = actual_change - historical_baseline
+        season_label: Human-readable season label for current period
+        years_used: Number of historical years with valid data
+    """
+    
+    actual_change: float  # meters
+    historical_baseline: float  # meters
+    deviation: float  # meters (actual_change - historical_baseline)
+    season_label: str  # e.g., "Monsoon", "Winter"
+    years_used: int
+
+
+@dataclass
 class Metrics:
     """Calculated metrics for a groundwater monitoring station."""
     
@@ -73,6 +93,7 @@ class Metrics:
     # Seasonal metrics
     seasonal_deviation: Optional[float] = None  # Deviation from seasonal baseline
     seasonal_baseline: Optional[float] = None
+    seasonal_metrics: Optional[SeasonalMetrics] = None  # Detailed seasonal analysis
     
     # Risk index
     risk_index: Optional[float] = None  # 0-100 composite risk score
