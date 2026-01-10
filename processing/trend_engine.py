@@ -15,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 # Trend classification thresholds (m/day)
-RECHARGING_THRESHOLD = -0.0005
-DEPLETING_THRESHOLD = 0.0005
+NOISE_FLOOR = 0.0005  # m/day - slopes below this magnitude are considered noise (STABLE)
 
 # Strength band thresholds (m/day)
 LOW_STRENGTH_THRESHOLD = 0.0007
@@ -93,15 +92,16 @@ class TrendEngine:
         
         # Classify trend status
         # For depth below ground: negative slope = Recharging (water rising), positive slope = Depleting (water falling)
-        if slope < 0:
+        # Use noise dead-zone to avoid classifying small slopes as trends
+        if abs(slope) < NOISE_FLOOR:
+            # Slope magnitude below noise floor = Stable
+            status = TrendIndicator.STABLE
+        elif slope < 0:
             # Negative slope: depth decreasing = water rising = Recharging
             status = TrendIndicator.RECHARGING
-        elif slope > 0:
+        else:
             # Positive slope: depth increasing = water falling = Depleting
             status = TrendIndicator.DEPLETING
-        else:
-            # Zero slope: no change = Stable
-            status = TrendIndicator.STABLE
         
         # Classify strength
         abs_slope = abs(slope)

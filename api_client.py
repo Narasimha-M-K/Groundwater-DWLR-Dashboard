@@ -116,9 +116,6 @@ class NWDPClient:
         """Generate mock reading data for development/testing."""
         from datetime import timedelta
         
-        # Seasonal variation amplitude (configurable constant)
-        SEASONAL_AMPLITUDE = 0.05  # ±0.05m seasonal variation
-        
         # Stable seed mapping for deterministic generation
         STATION_SEED_MAP = {
             "DWLR-001": 101,
@@ -144,19 +141,19 @@ class NWDPClient:
         baseline_depth = None
         trend_direction = None
         
-        # Assign patterns per station
+        # Assign patterns per station with strong, distinct linear trends
         if station_id == "DWLR-001":
-            # Recharging station: slow improvement (depth decreasing)
+            # Recharging station: strong improvement (depth decreasing)
             baseline_depth = 12.0  # Start at 12m below ground
-            trend_direction = -0.0003  # ~0.1m improvement per year
+            trend_direction = -0.002  # meters per day (recharging)
         elif station_id == "DWLR-002":
-            # Depleting station: slow decline (depth increasing)
+            # Depleting station: strong decline (depth increasing)
             baseline_depth = 10.0  # Start at 10m below ground
-            trend_direction = 0.0004  # ~0.15m decline per year
+            trend_direction = 0.002  # meters per day (depleting)
         else:  # DWLR-003 or any other
-            # Stable station: minimal change
+            # Stable station: no change
             baseline_depth = 11.5  # Start at 11.5m below ground
-            trend_direction = 0.00005  # Very slight variation
+            trend_direction = 0.0  # stable
         
         # Generate daily readings for exactly 365 days
         current_date = actual_start
@@ -168,11 +165,15 @@ class NWDPClient:
             trend_component = trend_direction * days_elapsed
             
             # Add seasonal variation (sinusoidal, ~6 month cycle)
-            seasonal_phase = (days_elapsed / 365.0) * 2 * np.pi
-            seasonal_component = SEASONAL_AMPLITUDE * np.sin(seasonal_phase)
+            # DWLR-003 is stable, so no seasonal variation for it
+            if station_id == "DWLR-003":
+                seasonal_component = 0  # No seasonal variation for stable station
+            else:
+                seasonal_phase = (days_elapsed / 365.0) * 2 * np.pi
+                seasonal_component = 0.03 * np.sin(seasonal_phase)  # ±3 cm seasonal ripple
             
-            # Add small daily random variation (±0.05m)
-            daily_variation = random.uniform(-0.05, 0.05)
+            # Add small daily random variation (±5 mm noise)
+            daily_variation = random.uniform(-0.005, 0.005)
             
             # Calculate final water level depth
             water_level = baseline_depth + trend_component + seasonal_component + daily_variation
