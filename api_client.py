@@ -4,7 +4,6 @@ Supports both live API access and mock data mode.
 """
 
 import logging
-import random
 from datetime import datetime, timedelta
 from typing import List, Optional
 
@@ -113,70 +112,71 @@ class NWDPClient:
         start_date: Optional[datetime],
         end_date: Optional[datetime]
     ) -> List[Reading]:
-        """Generate mock reading data for development/testing."""
-        from datetime import timedelta
+        """
+        Generate deterministic mock reading data for development/testing.
         
-        # Stable seed mapping for deterministic generation
-        STATION_SEED_MAP = {
-            "DWLR-001": 101,
-            "DWLR-002": 202,
-            "DWLR-003": 303
-        }
+        Generates a fixed historical window (2019-01-01 to 2024-01-01, 5 years)
+        with one reading per calendar day. Uses index-based regime mapping
+        to assign numerical drift parameters per station.
+        """
+        # Fixed historical window: 5 years of data
+        FIXED_START_DATE = datetime(2019, 1, 1)
+        FIXED_END_DATE = datetime(2024, 1, 1)
+        TOTAL_DAYS = (FIXED_END_DATE - FIXED_START_DATE).days  # 1825 days
         
-        # Set defaults if dates not provided
-        if end_date is None:
-            end_date = datetime.now()
-        if start_date is None:
-            start_date = end_date - timedelta(days=365)
+        # Get station index for deterministic regime mapping
+        stations = self._fetch_mock_stations()
+        station_ids = [s.station_id for s in stations]
+        try:
+            station_index = station_ids.index(station_id)
+        except ValueError:
+            # Unknown station: use hash-based index for determinism
+            station_index = hash(station_id) % 3
         
-        # Always generate exactly 365 days of data
-        days = 365
-        actual_start = end_date - timedelta(days=days - 1)
+        # Numerical regime parameters (no semantic labels)
+        # Regime 0: Positive drift (depth increasing over time)
+        # Regime 1: Negative drift (depth decreasing over time)
+        # Regime 2: Near-zero drift (stable)
+        REGIME_INDEX = station_index % 3
         
-        # Get deterministic seed for this station (default to 999 if unknown)
-        station_seed = STATION_SEED_MAP.get(station_id, 999)
-        random.seed(station_seed)
+        REGIME_PARAMS = [
+            {"baseline_depth": 10.0, "drift_per_day": 0.0015, "seasonal_amplitude": 0.03},  # Regime 0
+            {"baseline_depth": 12.0, "drift_per_day": -0.0015, "seasonal_amplitude": 0.03},  # Regime 1
+            {"baseline_depth": 11.5, "drift_per_day": 0.0001, "seasonal_amplitude": 0.0}   # Regime 2
+        ]
         
+        regime = REGIME_PARAMS[REGIME_INDEX]
+        baseline_depth = regime["baseline_depth"]
+        drift_per_day = regime["drift_per_day"]
+        seasonal_amplitude = regime["seasonal_amplitude"]
+        
+        # Deterministic seed: global seed + station index
+        GLOBAL_SEED = 42
+        station_seed = GLOBAL_SEED + station_index * 1000
+        rng = np.random.RandomState(station_seed)
+        
+        # Generate one reading per calendar day
         readings = []
-        baseline_depth = None
-        trend_direction = None
+        current_date = FIXED_START_DATE
         
-        # Assign patterns per station with strong, distinct linear trends
-        if station_id == "DWLR-001":
-            # Recharging station: strong improvement (depth decreasing)
-            baseline_depth = 12.0  # Start at 12m below ground
-            trend_direction = -0.002  # meters per day (recharging)
-        elif station_id == "DWLR-002":
-            # Depleting station: strong decline (depth increasing)
-            baseline_depth = 10.0  # Start at 10m below ground
-            trend_direction = 0.002  # meters per day (depleting)
-        else:  # DWLR-003 or any other
-            # Stable station: no change
-            baseline_depth = 11.5  # Start at 11.5m below ground
-            trend_direction = 0.0  # stable
-        
-        # Generate daily readings for exactly 365 days
-        current_date = actual_start
-        day_count = 0
-        
-        while day_count < days:
-            # Calculate trend component (linear over time)
-            days_elapsed = day_count
-            trend_component = trend_direction * days_elapsed
+        for day_index in range(TOTAL_DAYS):
+            # Days elapsed from start
+            days_elapsed = day_index
             
-            # Add seasonal variation (sinusoidal, ~6 month cycle)
-            # DWLR-003 is stable, so no seasonal variation for it
-            if station_id == "DWLR-003":
-                seasonal_component = 0  # No seasonal variation for stable station
-            else:
-                seasonal_phase = (days_elapsed / 365.0) * 2 * np.pi
-                seasonal_component = 0.03 * np.sin(seasonal_phase)  # ±3 cm seasonal ripple
+            # Trend component: linear drift over time
+            trend_component = drift_per_day * days_elapsed
             
-            # Add small daily random variation (±5 mm noise)
-            daily_variation = random.uniform(-0.005, 0.005)
+            # Seasonal variation (sinusoidal, annual cycle)
+            seasonal_phase = (days_elapsed / 365.25) * 2 * np.pi
+            seasonal_component = seasonal_amplitude * np.sin(seasonal_phase)
+            
+            # Bounded pseudo-noise (order of magnitude smaller than cumulative drift)
+            # Over 5 years, max cumulative drift is |0.0015 * 1825| = 2.74m
+            # Noise magnitude: ±0.005m (5mm) per day, much smaller than drift
+            noise = rng.uniform(-0.005, 0.005)
             
             # Calculate final water level depth
-            water_level = baseline_depth + trend_component + seasonal_component + daily_variation
+            water_level = baseline_depth + trend_component + seasonal_component + noise
             
             # Ensure realistic bounds (5-20m below ground)
             water_level = max(5.0, min(20.0, water_level))
@@ -191,7 +191,6 @@ class NWDPClient:
             readings.append(reading)
             
             current_date += timedelta(days=1)
-            day_count += 1
         
         return readings
 
