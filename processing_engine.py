@@ -64,7 +64,8 @@ class ProcessingEngine:
         seasonal_metrics = self.seasonal_engine.calculate_seasonal_deviation(
             readings,
             self.trend_window_days,
-            self.seasonal_comparison_years
+            self.seasonal_comparison_years,
+            reference_date=calculation_date
         )
         
         if seasonal_metrics:
@@ -174,9 +175,12 @@ class ProcessingEngine:
     ) -> Metrics:
         """Create empty metrics when insufficient data."""
         station_id = readings[0].station_id if readings else "unknown"
+        # calculation_date must be provided explicitly - no system time fallback
+        if calculation_date is None:
+            raise ValueError("calculation_date must be provided when creating empty metrics")
         return Metrics(
             station_id=station_id,
-            calculation_date=calculation_date or datetime.now(),
+            calculation_date=calculation_date,
             trend_indicator=TrendIndicator.INSUFFICIENT_DATA,
             data_points_used=0,
             calculation_notes="Insufficient data for calculation"

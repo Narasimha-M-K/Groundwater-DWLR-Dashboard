@@ -19,7 +19,8 @@ class SeasonalEngine:
         self,
         readings: List[Reading],
         window_days: int = 90,
-        years: int = 3
+        years: int = 3,
+        reference_date: Optional[datetime] = None
     ) -> Optional[SeasonalMetrics]:
         """
         Calculate seasonal deviation using rolling 90-day windows.
@@ -28,6 +29,7 @@ class SeasonalEngine:
             readings: List of Reading objects (should be sorted by timestamp)
             window_days: Analysis window size in days (default 90)
             years: Number of historical years to compare (default 3)
+            reference_date: Data-derived reference date (anchor for windows)
         
         Returns:
             SeasonalMetrics object or None if insufficient data
@@ -39,8 +41,10 @@ class SeasonalEngine:
         # Sort readings by timestamp
         sorted_readings = sorted(readings, key=lambda r: r.timestamp)
         
-        # Get latest reading date as end_date
-        end_date = sorted_readings[-1].timestamp
+        # Use data-derived reference_date as anchor (Step 3.5 time contract)
+        if reference_date is None:
+            reference_date = sorted_readings[-1].timestamp
+        end_date = reference_date
         start_date = end_date - timedelta(days=window_days)
         
         # Filter to current rolling window
@@ -75,7 +79,7 @@ class SeasonalEngine:
                 historical_changes.append(historical_change)
         
         if not historical_changes:
-            logger.warning("No valid historical windows found for seasonal baseline")
+            logger.info("No valid historical windows found for seasonal baseline")
             return None
         
         # Calculate baseline as mean of historical changes

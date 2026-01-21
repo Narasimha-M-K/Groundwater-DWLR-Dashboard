@@ -5,7 +5,7 @@ SQLite database storage and retrieval helpers for groundwater data.
 import logging
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 
 from config import config
@@ -236,6 +236,40 @@ class DataStore:
                 )
                 for row in cursor.fetchall()
             ]
+    
+    def get_max_reading_date(self, station_id: str) -> Optional[date]:
+        """
+        Get the latest reading date for a station.
+        
+        This becomes the system's effective "now" - the reference date
+        for all UI queries and date window calculations.
+        
+        Args:
+            station_id: Station identifier
+            
+        Returns:
+            datetime.date of the latest reading, or None if no readings exist
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT MAX(timestamp) FROM readings WHERE station_id = ?",
+                (station_id,)
+            )
+            row = cursor.fetchone()
+            if row and row[0]:
+                max_timestamp = row[0]
+                # Handle both string and datetime types
+                if isinstance(max_timestamp, str):
+                    dt = datetime.fromisoformat(max_timestamp)
+                else:
+                    dt = max_timestamp
+                # Return as date
+                if isinstance(dt, datetime):
+                    return dt.date()
+                elif isinstance(dt, date):
+                    return dt
+            return None
     
     def get_latest_metrics(self, station_id: str) -> Optional[Metrics]:
         """Retrieve the most recent metrics for a station."""

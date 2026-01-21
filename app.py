@@ -133,8 +133,13 @@ def main():
         # Display station details
         station = data_store.get_station(selected_station_id)
         if station:
+            # Derive reference date per station (data-derived "now")
+            reference_date = data_store.get_max_reading_date(selected_station_id)
+            if reference_date:
+                logger.debug(f"Using reference_date={reference_date} for station {selected_station_id}")
+            
             display_station_summary(station, data_store)
-            display_station_details(station, data_store)
+            display_station_details(station, data_store, reference_date)
 
 
 def display_station_summary(station: Station, data_store: DataStore):
@@ -167,22 +172,30 @@ def display_station_summary(station: Station, data_store: DataStore):
             st.metric("Risk Level", f"{risk_color} {metrics.risk_level.value}")
 
 
-def display_station_details(station: Station, data_store: DataStore):
+def display_station_details(station: Station, data_store: DataStore, reference_date):
     """Display detailed analysis for selected station."""
     st.subheader("Detailed Analysis")
     
-    # Get readings
-    end_date = datetime.now()
+    # Get readings using data-derived reference date
+    if reference_date is None:
+        st.warning(f"No readings found for station {station.station_id}")
+        return
+    
+    end_date = reference_date
     start_date = end_date - timedelta(days=365)
-    readings = data_store.get_readings(station.station_id, start_date, end_date)
+    # Convert date to datetime for query (end of day to include all readings on that date)
+    end_datetime = datetime.combine(end_date, datetime.max.time())
+    start_datetime = datetime.combine(start_date, datetime.min.time())
+    readings = data_store.get_readings(station.station_id, start_datetime, end_datetime)
     
     if not readings:
         st.warning(f"No readings found for station {station.station_id}")
         return
     
-    # Calculate metrics
+    # Calculate metrics using reference_date as calculation_date
     processing_engine = st.session_state.processing_engine
-    metrics = processing_engine.calculate_metrics(readings)
+    calculation_datetime = datetime.combine(reference_date, datetime.min.time())
+    metrics = processing_engine.calculate_metrics(readings, calculation_date=calculation_datetime)
     
     # Display metrics
     col1, col2 = st.columns(2)
