@@ -56,7 +56,9 @@ This project prioritizes explainable indicators over black-box analytics, clarit
 - **Phase 2: Trend logic** — Complete. Short-term trend calculation using linear regression.
 - **Phase 3: Seasonal deviation** — Complete. Conditionally available based on historical data alignment.
 - **Phase 4: Composite risk index** — Not implemented. Future enhancement.
-- **Phase 5: Insight interpreter** — Complete. Human-readable narrative generation.
+- **Phase 5: Insight interpreter** — Partially implemented
+Basic narrative explanations for trend and seasonal metrics are available.
+Risk-aware interpretation will be finalized after Phase 4.
 - **Phase 6: Simple chart** — Not implemented. Future enhancement.
 
 ## Roadmap (Future Enhancements – Not in MVP)
